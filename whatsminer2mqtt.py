@@ -62,7 +62,7 @@ if HOME_ASSISTANT:
         sys.exit()
 
     for x, y in merge.items():
-        client.publish(f'homeassistant/sensor/{MINER_IP}/config', payload=json.dumps({
+        client.publish(f'homeassistant/sensor/{MINER_IP}/{x}/config', payload=json.dumps({
             'availability': [
                 {'topic': f'{BASE_TOPIC}/status'}
             ],
