@@ -14,7 +14,6 @@ MQTT_KEEPALIVE = int(os.getenv('INTERVAL')) * 2
 MQTT_QOS = int(os.getenv('MQTT_QOS', 1))
 BASE_TOPIC = os.getenv('BASE_TOPIC', 'whatsminer')
 MINER_IP = os.getenv('MINER_IP')
-MINER_TOKEN = os.getenv('MINER_TOKEN')
 HOME_ASSISTANT = os.getenv('HOME_ASSISTANT', True)
 INTERVAL = int(os.getenv('INTERVAL', 10))
 
@@ -38,7 +37,7 @@ def on_connect(client, userdata, flags, rc):
     logging.info('Connected to MQTT broker with result code ' + str(rc))
 
 def get_info():
-    summary = WhatsminerAPI.get_read_only_info(access_token=MINER_TOKEN, cmd="summary")
+    summary = WhatsminerAPI.get_read_only_info(access_token=token, cmd="summary")
     output = json.dumps(summary)
     return output
 
