@@ -1,3 +1,25 @@
+# MIT License
+
+# whatsminer-api Copyright (c) 2021 satoshi-anonymoto
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import os
 import sys
 import json
@@ -11,16 +33,64 @@ MQTT_HOST = os.getenv('MQTT_HOST')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
 MQTT_USER = os.getenv('MQTT_USER')
 MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
-MQTT_KEEPALIVE = int(os.getenv('INTERVAL')) * 5
+MQTT_KEEPALIVE = int(os.getenv('INTERVAL')) * 3
 BASE_TOPIC = os.getenv('BASE_TOPIC', 'whatsminer')
 MINER_IP = os.getenv('MINER_IP')
 HOME_ASSISTANT = os.getenv('HOME_ASSISTANT', True)
 INTERVAL = int(os.getenv('INTERVAL', 10))
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 
-client = mqtt_client.Client(BASE_TOPIC)
-token = WhatsminerAccessToken(ip_address=MINER_IP)
+class Whatsminer:
+    def __init__(self):
+        self.old_info = {}
 
-logging.basicConfig(level='INFO', format='%(asctime)s %(levelname)s: %(message)s')
+    def get_info(self):
+        """Gather data from Whatsminer API"""
+        try:
+            output = WhatsminerAPI.get_read_only_info(access_token=token, cmd="summary")
+            status = output['STATUS'][0]
+            summary = output['SUMMARY'][0]
+            self.info = status | summary
+        except Exception as e:
+            logging.error(f'Unable to connect to Whatsminer API: {e}')
+
+    def send_payload(self):
+        """Send MQTT payload for each parameter from Whatsminer API if value changed from previous payload"""
+        try:
+            for x, y in self.info.items():
+                try:
+                    if y != self.old_info[x]:
+                        client.publish(f'{BASE_TOPIC}/info/{x}', payload=str(y), qos=0, retain=True)
+                except KeyError:
+                    # if key doesn't exist in previous payload (e.g., this is the first time whatsminer2mqtt has sent a payload since startup), ignore the error and send the payload
+                    client.publish(f'{BASE_TOPIC}/info/{x}', payload=str(y), qos=0, retain=True)
+            client.publish(f'{BASE_TOPIC}/status', 'online', 0, True)
+            self.old_info = self.info
+        except Exception as e:
+            logging.error(f'Unable to publish payload (send_payload): {e}')
+
+    def mqtt_discovery(self):
+        """Send Home Assistant MQTT discovery payloads"""
+        try:
+            for x in self.info.keys():
+                client.publish(f'homeassistant/sensor/Whatsminer_{MINER_IP.replace(".","-")}/{x.replace(" ","")}/config', payload=json.dumps({
+                    'availability': [
+                        {'topic': f'{BASE_TOPIC}/status'}
+                    ],
+                    'name': f'Whatsminer {x}',
+                    'state_topic': f'{BASE_TOPIC}/info/{x}',
+                    'unique_id': f'{MINER_IP}{x}',
+                    'device': {
+                        'name': f'Whatsminer {MINER_IP}',
+                        'identifiers': f'Whatsminer {MINER_IP}',
+                        'manufacturer': 'Whatsminer',
+                        'sw_version': '1.0',
+                        'model': 'Whatsminer'
+                    }
+                }
+                ), qos=0, retain=True)
+        except Exception as e:
+            logging.error(f'Unable to publish MQTT discovery payload: {e}')
 
 def mqtt_connect():
     """Connect to MQTT broker and set LWT"""
@@ -38,54 +108,31 @@ def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the MQTT broker.
     logging.info('Connected to MQTT broker with result code ' + str(rc))
 
-def get_info():
-    try:
-        output = WhatsminerAPI.get_read_only_info(access_token=token, cmd="summary")
-        status = output['STATUS'][0]
-        summary = output['SUMMARY'][0]
-        # status = {'STATUS': 'S', 'When': 1643347157, 'Code': 11, 'Msg': 'Summary', 'Description': 'cgminer 4.9.2'}
-        # summary = {'Elapsed': 394368, 'MHS av': 54950457.69, 'MHS 5s': 56199295.48, 'MHS 1m': 54747047.59, 'MHS 5m': 54844639.42, 'MHS 15m': 54780205.41, 'HS RT': 54844639.42, 'Found Blocks': 0, 'Getworks': 25952, 'Accepted': 148655, 'Rejected': 37, 'Hardware Errors': 904, 'Utility': 22.62, 'Discarded': 19039575, 'Stale': 2, 'Get Failures': 4, 'Local Work': 2660323345, 'Remote Failures': 0, 'Network Blocks': 654, 'Total MH': 21670690782991.0, 'Work Utility': 2998.63, 'Difficulty Accepted': 5054381082.0, 'Difficulty Rejected': 1333251.0, 'Difficulty Stale': 0.0, 'Best Share': 3111029565, 'Temperature': 72.0, 'freq_avg': 848, 'Fan Speed In': 6840, 'Fan Speed Out': 6840, 'Voltage': 1228, 'Power': 3412, 'Power_RT': 3416, 'Device Hardware%': 0.0046, 'Device Rejected%': 6.7645, 'Pool Rejected%': 0.0264, 'Pool Stale%': 0.0, 'Last getwork': 0, 'Uptime': 395662, 'Chip Data': 'HPND06-19102101   BINV04-192106B', 'Power Current': 248, 'Power Fanspeed': 8910, 'Error Code Count': 0, 'Factory Error Code Count': 0, 'Security Mode': 0, 'Liquid Cooling': False, 'Hash Stable': True, 'Hash Stable Cost Seconds': 2194, 'Hash Deviation%': -1.022, 'Target Freq': 824, 'Target MHS': 54166464, 'Power Mode': 'Normal', 'Firmware Version': "'20210322.22.REL'", 'CB Platform': 'ALLWINNER_H3', 'CB Version': 'V8', 'MAC': '99:DE:AD:BE:EF:99', 'Factory GHS': 55347, 'Power Limit': 3500, 'Chip Temp Min': 0.0, 'Chip Temp Max': 0.0, 'Chip Temp Avg': 0.0}
-        info = status | summary
-    except Exception as e:
-        logging.error(f'Unable to connect to Whatsminer API: {e}')
-    return info
-
-def send_payload():
-    info = get_info()
-    for x, y in info.items():
-        client.publish(f'{BASE_TOPIC}/info/{x}', payload=str(y), qos=0, retain=True)
-
-def mqtt_discovery():
-    try:
-        info = get_info()
-        for x in info.keys():
-            client.publish(f'homeassistant/sensor/Whatsminer_{MINER_IP.replace(".","-")}/{x.replace(" ","")}/config', payload=json.dumps({
-                'availability': [
-                    {'topic': f'{BASE_TOPIC}/status'}
-                ],
-                'name': f'Whatsminer {x}',
-                'state_topic': f'{BASE_TOPIC}/info/{x}',
-                'unique_id': f'{MINER_IP}{x}',
-                'device': {
-                    'name': f'Whatsminer {MINER_IP}',
-                    'identifiers': f'Whatsminer {MINER_IP}',
-                    'manufacturer': 'Whatsminer',
-                    'sw_version': '1.0',
-                    'model': 'Whatsminer'
-                }
-            }
-            ), qos=0, retain=True)
-    except Exception as e:
-        logging.error(f'Unable to publish MQTT discovery payload: {e}')
-
 def main_loop():
+    """Poll for info from the Whatsminer API at defined interval"""
     while True:
-        send_payload()
         sleep(INTERVAL)
+        w.send_payload()
 
 if __name__ == '__main__':
+    if MQTT_HOST == None:
+        logging.error('Please specify the IP address or hostname of your MQTT broker.')
+        sys.exit()
+
+    if LOG_LEVEL.lower() not in ['debug', 'info', 'warning', 'error']:
+        logging.basicConfig(level='INFO', format='%(asctime)s %(levelname)s: %(message)s')
+        logging.warning(f'Selected log level "{LOG_LEVEL}" is not valid; using default (INFO)')
+    else:
+        logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s: %(message)s')
+
+    client = mqtt_client.Client(BASE_TOPIC)
+    token = WhatsminerAccessToken(ip_address=MINER_IP)
+    w = Whatsminer()
     mqtt_connect()
-    mqtt_discovery()
+    w.get_info()
+    w.send_payload()
+    if HOME_ASSISTANT:
+        w.mqtt_discovery()
     polling_thread = t(target=main_loop, daemon=True)
     polling_thread.start()
     client.loop_forever()
