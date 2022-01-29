@@ -25,7 +25,7 @@ services:
     - LOG_LEVEL=debug
     restart: unless-stopped
 ```
-2. `docker-compose up -d audioflow2mqtt`
+2. `docker-compose up -d whatsminer2mqtt`
 
 <br>
 
