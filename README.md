@@ -78,3 +78,6 @@ whatsminer2mqtt supports Home Assistant MQTT discovery which creates a Device fo
 
 # MQTT topic structure
 Payloads for each piece of information are published to `BASE_TOPIC/info/PARAMETER` where `BASE_TOPIC` is the base topic you define and `PARAMETER` is the name of each monitored condition from the `summary` command.
+
+<br>
+<a href="https://www.buymeacoffee.com/tediore" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
