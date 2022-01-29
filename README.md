@@ -19,7 +19,7 @@ services:
     - MQTT_USER=user
     - MQTT_PASSWORD=password
     - BASE_TOPIC=whatsminer2mqtt
-    - HOMEASSISTANT=True
+    - HOME_ASSISTANT=True
     - MINER_IP=10.0.1.4
     - INTERVAL=10
     - LOG_LEVEL=debug
@@ -39,7 +39,7 @@ docker run --name whatsminer2mqtt \
 -e MQTT_USER=user \
 -e MQTT_PASSWORD=password \
 -e BASE_TOPIC=whatsminer2mqtt \
--e HOMEASSISTANT=True \
+-e HOME_ASSISTANT=True \
 -e MINER_IP=10.0.1.4 \
 -e INTERVAL=10 \
 -e LOG_LEVEL=debug \
