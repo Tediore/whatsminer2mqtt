@@ -62,7 +62,8 @@ class Whatsminer:
                     if y != self.old_info[x]:
                         client.publish(f'{BASE_TOPIC}/info/{x}', payload=str(y), qos=0, retain=True)
                 except KeyError:
-                    # if key doesn't exist in previous payload (e.g., this is the first time whatsminer2mqtt has sent a payload since startup), ignore the error and send the payload
+                    # if key doesn't exist in previous payload (e.g., this is the first time whatsminer2mqtt has sent a payload since startup), ignore 
+                    # the error and send the payload
                     client.publish(f'{BASE_TOPIC}/info/{x}', payload=str(y), qos=0, retain=True)
             client.publish(f'{BASE_TOPIC}/status', 'online', 0, True)
             self.old_info = self.info
