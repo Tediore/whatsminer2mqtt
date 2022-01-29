@@ -48,7 +48,7 @@ tediore/whatsminer2mqtt:latest
 
 <br>
 
-**Bare metal (not recommended)**
+**Bare metal (not recommended) (Requires Python 3.9+)**
 1. Set the necessary environment variables
 2. `git clone https://github.com/Tediore/whatsminer2mqtt`
 3. `cd whatsminer2mqtt`
